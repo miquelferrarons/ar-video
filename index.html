@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>AR Video (web)</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: #000; color: #eee; overflow: hidden;
+    font: 16px/1.45 system-ui, -apple-system, sans-serif; }
+  /* MindAR puts the camera feed and the WebGL canvas in here. */
+  #ar { position: fixed; inset: 0; overflow: hidden; }
+  #intro {
+    position: fixed; inset: 0; z-index: 10; background: #111;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 16px; padding: 24px; text-align: center;
+  }
+  #intro[hidden], #hud[hidden] { display: none; }
+  #intro img { width: 100%; max-width: 420px; border-radius: 6px; }
+  #intro p { margin: 0; max-width: 40ch; color: #bbb; }
+  button {
+    font: inherit; font-weight: 600; padding: 12px 26px; border-radius: 999px;
+    border: 0; background: #4f8cff; color: #fff; cursor: pointer;
+  }
+  button:disabled { background: #333; color: #777; }
+  #msg { color: #ffb86b; min-height: 1.45em; }
+  #hud {
+    position: fixed; z-index: 5; left: 50%; transform: translateX(-50%);
+    top: max(16px, env(safe-area-inset-top));
+    background: rgba(0,0,0,.6); color: #fff; padding: 8px 14px;
+    border-radius: 999px; font-size: 14px; white-space: nowrap;
+  }
+</style>
+<script type="importmap">
+{ "imports": { "three": "./vendor/three.module.min.js", "three/addons/": "./vendor/addons/" } }
+</script>
+</head>
+<body>
+  <div id="ar"></div>
+  <div id="hud" hidden>Point the camera at the picture</div>
+
+  <div id="intro">
+    <img src="target.jpg" alt="The picture to point the camera at">
+    <p>Works in Safari on iPhone and Chrome on Android. Show this picture on another screen, then point the camera at it.</p>
+    <button id="start">Start AR</button>
+    <p id="msg"></p>
+    <p style="font-size:12px">Demo video: Big Buck Bunny © Blender Foundation (peach.blender.org), CC BY 3.0</p>
+  </div>
+
+<script type="module">
+import * as THREE from 'three';
+import { MindARThree } from './vendor/mindar/mindar-image-three.prod.js';
+
+const $ = (id) => document.getElementById(id);
+const startBtn = $('start'), msg = $('msg'), hud = $('hud'), intro = $('intro');
+
+// Starts downloading straight away, in parallel with everything else.
+const video = document.createElement('video');
+video.setAttribute('playsinline', '');
+video.playsInline = true;
+video.loop = true;
+video.preload = 'auto';
+video.src = 'video.mp4';
+video.load();
+
+let found = false;        // picture currently tracked
+let everFound = false;
+let videoShown = false;   // plane has switched from the picture to the video
+
+startBtn.addEventListener('click', async () => {
+  startBtn.disabled = true;
+  msg.textContent = '';
+
+  // Unlock playback with sound while we still have the tap. It is paused
+  // again at once unless the picture is already in view.
+  video.play().then(() => { if (!found) video.pause(); }).catch(() => {});
+
+  try {
+    const mindar = new MindARThree({
+      container: $('ar'),
+      imageTargetSrc: 'targets.mind',
+      uiLoading: 'no', uiScanning: 'no', uiError: 'no',
+    });
+    const { renderer, scene, camera } = mindar;
+
+    // A tracked picture is 1 unit wide in the XY plane of its anchor.
+    // Placeholder: the picture itself, dimmed, with a spinner, so AR shows
+    // immediately while the video is still loading.
+    const pictureTexture = await new THREE.TextureLoader().loadAsync('target.jpg');
+    pictureTexture.colorSpace = THREE.SRGBColorSpace;
+    const material = new THREE.MeshBasicMaterial({ map: pictureTexture, color: 0x808080 });
+    const aspect = pictureTexture.image.height / pictureTexture.image.width;
+    const plane = new THREE.Mesh(new THREE.PlaneGeometry(1, aspect), material);
+
+    const spinner = new THREE.Mesh(
+      new THREE.RingGeometry(0.06, 0.08, 48, 1, 0, Math.PI * 1.5),
+      new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide })
+    );
+    spinner.position.z = 0.002;
+    plane.add(spinner);
+
+    const videoTexture = new THREE.VideoTexture(video);
+    videoTexture.colorSpace = THREE.SRGBColorSpace;
+
+    const anchor = mindar.addAnchor(0);
+    anchor.group.add(plane);
+
+    anchor.onTargetFound = () => {
+      found = true;
+      if (!everFound) {
+        // First sighting: start from frame 0 so the picture "comes alive".
+        everFound = true;
+        try { video.currentTime = 0; } catch (e) {}
+      }
+      video.play().catch(() => {});
+      hud.textContent = videoShown ? 'Tracking' : 'Loading video…';
+    };
+    anchor.onTargetLost = () => {
+      found = false;
+      video.pause();
+      hud.textContent = 'Point the camera at the picture';
+    };
+
+    await mindar.start();
+    intro.hidden = true;
+    hud.hidden = false;
+
+    const clock = new THREE.Clock();
+    renderer.setAnimationLoop(() => {
+      const dt = clock.getDelta();
+      if (!videoShown) {
+        spinner.rotation.z -= dt * 6;
+        // Switch once the video really has a frame on screen.
+        if (found && video.readyState >= 2 && !video.paused && video.currentTime > 0) {
+          videoShown = true;
+          material.map = videoTexture;
+          material.color.set(0xffffff);
+          material.needsUpdate = true;
+          plane.remove(spinner);
+          hud.textContent = 'Tracking';
+        }
+      }
+      renderer.render(scene, camera);
+    });
+  } catch (err) {
+    console.error(err);
+    video.pause();
+    // MindAR rejects with no error object when it cannot open the camera.
+    const denied = !err || err.name === 'NotAllowedError' || err.name === 'SecurityError';
+    msg.textContent = denied
+      ? 'Could not open the camera. Allow camera access for this site and reload.'
+      : 'Could not start AR: ' + ((err && (err.message || err.name)) || err);
+    startBtn.disabled = false;
+  }
+});
+
+if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+  msg.textContent = 'This page needs camera access over HTTPS. Open the https:// address.';
+  startBtn.disabled = true;
+}
+</script>
+</body>
+</html>
