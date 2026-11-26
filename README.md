@@ -6,7 +6,7 @@ Runs in the browser on iPhone (Safari, Chrome) and Android (Chrome) using [MindA
 
 - `index.html` – the page
 - `targets.mind` – precompiled tracking data for `target.jpg`
-- `video.mp4` – the demo video (640×360, 8 s, generated for this demo)
+- `video.mp4` – the demo video (480×272, 8 s, generated for this demo)
 - `vendor/` – MindAR 1.2.5 and three.js 0.160
 
 ## Using your own video

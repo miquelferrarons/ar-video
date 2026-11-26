@@ -41,7 +41,7 @@
   <div id="hud" hidden>Point the camera at the picture</div>
 
   <div id="intro">
-    <img src="target.jpg?v=2" alt="The picture to point the camera at">
+    <img src="target.jpg?v=3" alt="The picture to point the camera at">
     <p>Works in Safari on iPhone and Chrome on Android. Show this picture on another screen, then point the camera at it.</p>
     <button id="start">Start AR</button>
     <p id="msg"></p>
@@ -60,7 +60,7 @@ video.setAttribute('playsinline', '');
 video.playsInline = true;
 video.loop = true;
 video.preload = 'auto';
-video.src = 'video.mp4?v=2';
+video.src = 'video.mp4?v=3';
 video.load();
 
 let found = false;        // picture currently tracked
@@ -78,7 +78,7 @@ startBtn.addEventListener('click', async () => {
   try {
     const mindar = new MindARThree({
       container: $('ar'),
-      imageTargetSrc: 'targets.mind?v=2',
+      imageTargetSrc: 'targets.mind?v=3',
       uiLoading: 'no', uiScanning: 'no', uiError: 'no',
     });
     const { renderer, scene, camera } = mindar;
@@ -86,7 +86,7 @@ startBtn.addEventListener('click', async () => {
     // A tracked picture is 1 unit wide in the XY plane of its anchor.
     // Placeholder: the picture itself, dimmed, with a spinner, so AR shows
     // immediately while the video is still loading.
-    const pictureTexture = await new THREE.TextureLoader().loadAsync('target.jpg?v=2');
+    const pictureTexture = await new THREE.TextureLoader().loadAsync('target.jpg?v=3');
     pictureTexture.colorSpace = THREE.SRGBColorSpace;
     const material = new THREE.MeshBasicMaterial({ map: pictureTexture, color: 0x808080 });
     const aspect = pictureTexture.image.height / pictureTexture.image.width;
