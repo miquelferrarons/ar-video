@@ -125,6 +125,33 @@ startBtn.addEventListener('click', async () => {
     intro.hidden = true;
     hud.hidden = false;
 
+    // Diagnostics: add ?debug to the address to see what the page measured.
+    if (new URLSearchParams(location.search).has('debug')) {
+      const box = document.createElement('pre');
+      box.style.cssText = 'position:fixed;left:0;bottom:0;z-index:20;margin:0;padding:6px 8px;' +
+        'background:rgba(0,0,0,.75);color:#0f0;font:11px/1.35 monospace;white-space:pre-wrap;max-width:100%';
+      document.body.append(box);
+      setInterval(() => {
+        const cam = mindar.video, ctl = mindar.controller || {}, el = $('ar'), vv = window.visualViewport || {};
+        const cv = el.querySelector('canvas');
+        const m = anchor.group.matrix.elements;
+        box.textContent = [
+          'window ' + innerWidth + 'x' + innerHeight + ' dpr ' + devicePixelRatio.toFixed(2) +
+            ' vv ' + Math.round(vv.width) + 'x' + Math.round(vv.height) + ' @' + (vv.scale || 1).toFixed(2),
+          'container ' + el.clientWidth + 'x' + el.clientHeight,
+          'camera ' + cam.videoWidth + 'x' + cam.videoHeight + ' attr ' + cam.getAttribute('width') + 'x' + cam.getAttribute('height') +
+            ' tracker ' + ctl.inputWidth + 'x' + ctl.inputHeight,
+          'cam css ' + [cam.style.left, cam.style.top, cam.style.width, cam.style.height].join(' '),
+          'canvas css ' + (cv ? cv.style.width + ' ' + cv.style.height + ' px ' + cv.width + 'x' + cv.height : '-'),
+          'fov ' + camera.fov.toFixed(2) + ' aspect ' + camera.aspect.toFixed(3),
+          'picture ' + pictureTexture.image.width + 'x' + pictureTexture.image.height +
+            ' video ' + video.videoWidth + 'x' + video.videoHeight + ' t ' + video.currentTime.toFixed(1),
+          'anchor ' + (anchor.group.visible ? 'visible' : 'hidden') + ' pos ' + [m[12], m[13], m[14]].map((n) => n.toFixed(0)).join(','),
+          (navigator.userAgentData && navigator.userAgentData.mobile === false ? 'DESKTOP-SITE MODE ' : '') + location.host,
+        ].join('\n');
+      }, 500);
+    }
+
     const clock = new THREE.Clock();
     renderer.setAnimationLoop(() => {
       const dt = clock.getDelta();
