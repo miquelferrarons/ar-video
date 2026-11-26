@@ -6,13 +6,17 @@ Runs in the browser on iPhone (Safari, Chrome) and Android (Chrome) using [MindA
 
 - `index.html` – the page
 - `targets.mind` – precompiled tracking data for `target.jpg`
-- `video.mp4` – the demo video (640×360, 10 s)
+- `video.mp4` – the demo video (640×360, 8 s, generated for this demo)
 - `vendor/` – MindAR 1.2.5 and three.js 0.160
 
 ## Using your own video
 
 Replace `video.mp4`, save its first frame as `target.jpg`, and recompile `targets.mind` from that picture with the [MindAR image target compiler](https://hiukim.github.io/mind-ar-js-doc/tools/compile).
 
+## Choosing a picture that tracks well
+
+The tracker needs a picture with crisp, distinctive detail: text, hard edges, varied shapes. Soft or repetitive imagery (foliage, grass, sky, blur) can make it lock on in the wrong place. If you change the files, bump the `?v=` number in `index.html` so phones do not reuse cached copies.
+
 ## Credits
 
-Demo video and picture: *Big Buck Bunny* © Blender Foundation, [peach.blender.org](https://peach.blender.org), licensed under [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/).
+Tracking by [MindAR](https://github.com/hiukim/mind-ar-js) (MIT), rendering by [three.js](https://threejs.org) (MIT). The demo clip is original to this repository.
