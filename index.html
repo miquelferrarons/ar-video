@@ -125,6 +125,26 @@ startBtn.addEventListener('click', async () => {
     intro.hidden = true;
     hud.hidden = false;
 
+    // Keep the WebGL surface within what phone GPUs can allocate. In
+    // desktop-site mode the page is laid out ~980px wide, and at the phone's
+    // pixel ratio the surface would exceed 4096px; the browser then silently
+    // shrinks it and the overlay is drawn stretched and shifted.
+    const MAX_SURFACE = 2048;
+    const fitSurface = () => {
+      const el = $('ar');
+      const longest = Math.max(el.clientWidth, el.clientHeight, 1);
+      const ratio = Math.min(window.devicePixelRatio || 1, MAX_SURFACE / longest);
+      if (Math.abs(renderer.getPixelRatio() - ratio) > 0.001) {
+        renderer.setPixelRatio(ratio);
+        renderer.setSize(el.clientWidth, el.clientHeight);
+      }
+      // Desktop-site mode also shrinks the page; keep the status label readable.
+      const zoom = (window.visualViewport && window.visualViewport.scale) || 1;
+      hud.style.transform = zoom < 0.9 ? 'translateX(-50%) scale(' + (1 / zoom).toFixed(2) + ')' : '';
+      hud.style.transformOrigin = 'top center';
+    };
+    fitSurface();
+
     // Diagnostics: add ?debug to the address to see what the page measured.
     if (new URLSearchParams(location.search).has('debug')) {
       const box = document.createElement('pre');
@@ -142,7 +162,8 @@ startBtn.addEventListener('click', async () => {
           'camera ' + cam.videoWidth + 'x' + cam.videoHeight + ' attr ' + cam.getAttribute('width') + 'x' + cam.getAttribute('height') +
             ' tracker ' + ctl.inputWidth + 'x' + ctl.inputHeight,
           'cam css ' + [cam.style.left, cam.style.top, cam.style.width, cam.style.height].join(' '),
-          'canvas css ' + (cv ? cv.style.width + ' ' + cv.style.height + ' px ' + cv.width + 'x' + cv.height : '-'),
+          'canvas css ' + (cv ? cv.style.width + ' ' + cv.style.height + ' px ' + cv.width + 'x' + cv.height : '-') +
+            ' buffer ' + renderer.getContext().drawingBufferWidth + 'x' + renderer.getContext().drawingBufferHeight,
           'fov ' + camera.fov.toFixed(2) + ' aspect ' + camera.aspect.toFixed(3),
           'picture ' + pictureTexture.image.width + 'x' + pictureTexture.image.height +
             ' video ' + video.videoWidth + 'x' + video.videoHeight + ' t ' + video.currentTime.toFixed(1),
@@ -155,6 +176,7 @@ startBtn.addEventListener('click', async () => {
     const clock = new THREE.Clock();
     renderer.setAnimationLoop(() => {
       const dt = clock.getDelta();
+      fitSurface(); // cheap; re-applies after MindAR resizes the renderer
       if (!videoShown) {
         spinner.rotation.z -= dt * 6;
         // Switch once the video really has a frame on screen.
